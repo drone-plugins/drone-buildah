@@ -1,0 +1,173 @@
+kind: pipeline
+type: docker
+name: default
+
+steps:
+- name: build
+  image: golang
+  commands:
+  - go test ./...
+  - sh scripts/build.sh
+
+- name: docker
+  image: plugins/docker
+  settings:
+    repo: plugins/buildah-docker
+    auto_tag: true
+    auto_tag_suffix: linux-amd64
+    daemon_off: false
+    dockerfile: docker/docker/Dockerfile.linux.amd64
+    username:
+      from_secret: docker_username
+    password:
+      from_secret: docker_password
+  when:
+    event:
+      exclude:
+      - pull_request
+
+- name: gcr
+  image: plugins/docker
+  settings:
+    repo: plugins/buildah-gcr
+    auto_tag: true
+    auto_tag_suffix: linux-amd64
+    daemon_off: false
+    dockerfile: docker/gcr/Dockerfile.linux.amd64
+    username:
+      from_secret: docker_username
+    password:
+      from_secret: docker_password
+  when:
+    event:
+      exclude:
+      - pull_request
+
+- name: ecr
+  image: plugins/docker
+  settings:
+    repo: plugins/buildah-ecr
+    auto_tag: true
+    auto_tag_suffix: linux-amd64
+    daemon_off: false
+    dockerfile: docker/ecr/Dockerfile.linux.amd64
+    username:
+      from_secret: docker_username
+    password:
+      from_secret: docker_password
+  when:
+    event:
+      exclude:
+      - pull_request
+
+- name: acr
+  image: plugins/docker
+  settings:
+    repo: plugins/buildah-acr
+    auto_tag: true
+    auto_tag_suffix: linux-amd64
+    daemon_off: false
+    dockerfile: docker/acr/Dockerfile.linux.amd64
+    username:
+      from_secret: docker_username
+    password:
+      from_secret: docker_password
+  when:
+    event:
+      exclude:
+      - pull_request
+  
+- name: heroku
+  image: plugins/docker
+  settings:
+    repo: plugins/buildah-heroku
+    auto_tag: true
+    auto_tag_suffix: linux-amd64
+    daemon_off: false
+    dockerfile: docker/heroku/Dockerfile.linux.amd64
+    username:
+      from_secret: docker_username
+    password:
+      from_secret: docker_password
+  when:
+    event:
+      exclude:
+      - pull_request
+
+---
+kind: pipeline
+type: docker
+name: notifications-docker
+
+platform:
+  os: linux
+  arch: amd64
+
+steps:
+- name: manifest-docker
+  pull: always
+  image: plugins/manifest
+  settings:
+    auto_tag: true
+    ignore_missing: true
+    password:
+      from_secret: docker_password
+    spec: docker/docker/manifest.tmpl
+    username:
+      from_secret: docker_username
+
+- name: manifest-gcr
+  pull: always
+  image: plugins/manifest
+  settings:
+    auto_tag: true
+    ignore_missing: true
+    password:
+      from_secret: docker_password
+    spec: docker/gcr/manifest.tmpl
+    username:
+      from_secret: docker_username
+
+- name: manifest-ecr
+  pull: always
+  image: plugins/manifest
+  settings:
+    auto_tag: true
+    ignore_missing: true
+    password:
+      from_secret: docker_password
+    spec: docker/ecr/manifest.tmpl
+    username:
+      from_secret: docker_username
+
+- name: manifest-acr
+  pull: always
+  image: plugins/manifest
+  settings:
+    auto_tag: true
+    ignore_missing: true
+    password:
+      from_secret: docker_password
+    spec: docker/acr/manifest.tmpl
+    username:
+      from_secret: docker_username
+
+- name: manifest-heroku
+  pull: always
+  image: plugins/manifest
+  settings:
+    auto_tag: true
+    ignore_missing: true
+    password:
+      from_secret: docker_password
+    spec: docker/heroku/manifest.tmpl
+    username:
+      from_secret: docker_username
+
+trigger:
+  ref:
+  - refs/heads/main
+  - "refs/tags/**"
+
+depends_on:
+- default
