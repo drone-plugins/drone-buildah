@@ -18,5 +18,6 @@ USER build
 WORKDIR /home/build
 
 # Add plugin binary
+ADD release/linux/amd64/drone-docker /bin/
 ADD release/linux/amd64/drone-gcr /bin/
 ENTRYPOINT ["/bin/drone-gcr"]
