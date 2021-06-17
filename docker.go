@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"strings"
 	"time"
@@ -59,18 +60,21 @@ type (
 func (p Plugin) Exec() error {
 	// Create Auth Config File
 	if p.Login.Config != "" {
-		homeDir, err := os.UserHomeDir()
+		user, err := user.Current()
 		if err != nil {
-			return fmt.Errorf("failed to find home directory: %s", err)
+			return fmt.Errorf("Error getting the current user: %s", err)
 		}
-		dockerHome := fmt.Sprintf("%s/.docker/config.json", homeDir)
-		os.MkdirAll(dockerHome, 0600)
+		root := fmt.Sprintf("/var/tmp/%s/containers/containers/", user.Uid)
+		if err := os.MkdirAll(root, 0777); err != nil {
+			return fmt.Errorf("Error writing runtime dir: %s", err)
+		}
 
-		path := filepath.Join(dockerHome, "config.json")
-		err = ioutil.WriteFile(path, []byte(p.Login.Config), 0600)
-		if err != nil {
-			return fmt.Errorf("Error writing config.json: %s", err)
+		path := filepath.Join(root, "auth.json")
+		if err := ioutil.WriteFile(path, []byte(p.Login.Config), 0600); err != nil {
+			return fmt.Errorf("Error writing auth.json: %s", err)
 		}
+
+		fmt.Printf("Config written to %s\n", path)
 	}
 
 	// login to the Docker registry
