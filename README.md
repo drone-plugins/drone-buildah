@@ -66,7 +66,6 @@ docker run --rm \
   -e PLUGIN_REPO=octocat/hello-world \
   -e DRONE_COMMIT_SHA=d8dbe4d94f15fe89232e0402c6e8a0ddf21af3ab \
   --cap-add=SYS_ADMIN \
-  -v /var/lib/containers/:/var/lib/containers/:Z \
   -v $(pwd):$(pwd) \
   -w $(pwd) \
   plugins/buildah-docker --dry-run
