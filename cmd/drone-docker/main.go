@@ -182,6 +182,41 @@ func main() {
 			Usage:  "additional host:IP mapping",
 			EnvVar: "PLUGIN_ADD_HOST",
 		},
+		cli.StringSliceFlag{
+			Name:   "s3-local-cache-dir",
+			Usage:  "local directory for S3 based cache",
+			EnvVar: "S3_LOCAL_CACHE_DIR",
+		},
+		cli.StringSliceFlag{
+			Name:   "s3-bucket",
+			Usage:  "S3 bucket name",
+			EnvVar: "S3_BUCKET",
+		},
+		cli.StringSliceFlag{
+			Name:   "s3-endpoint",
+			Usage:  "S3 endpoint address",
+			EnvVar: "S3_END_POINT",
+		},
+		cli.StringSliceFlag{
+			Name:   "s3-region",
+			Usage:  "S3 region",
+			EnvVar: "S3_REGION",
+		},
+		cli.StringSliceFlag{
+			Name:   "s3-key",
+			Usage:  "S3 access key",
+			EnvVar: "S3_KEY",
+		},
+		cli.StringSliceFlag{
+			Name:   "s3-secret",
+			Usage:  "S3 access secret",
+			EnvVar: "S3_SECRET",
+		},
+		cli.StringSliceFlag{
+			Name:   "s3-use-ssl",
+			Usage:  "Enable SSL for S3 connections",
+			EnvVar: "S3_USE_SSL",
+		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
