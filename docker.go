@@ -45,6 +45,14 @@ type (
 		NoCache     bool     // Docker build no-cache
 		AddHost     []string // Docker build add-host
 		Quiet       bool     // Docker build quiet
+		S3CacheDir  string
+		S3Bucket    string
+		S3Endpoint  string
+		S3Region    string
+		S3Key       string
+		S3Secret    string
+		S3UseSSL    bool
+		Layers      bool
 	}
 
 	// Plugin defines the Docker plugin parameters.
@@ -190,6 +198,7 @@ func commandInfo() *exec.Cmd {
 func commandBuild(build Build) *exec.Cmd {
 	args := []string{
 		"bud",
+		"--storage-driver", "vfs",
 		"-f", build.Dockerfile,
 	}
 
@@ -222,6 +231,30 @@ func commandBuild(build Build) *exec.Cmd {
 	}
 	if build.Quiet {
 		args = append(args, "--quiet")
+	}
+	if build.Layers {
+		args = append(args, "--layers=true")
+		if build.S3CacheDir != "" {
+			args = append(args, "--s3-local-cache-dir", build.S3CacheDir)
+			if build.S3Bucket != "" {
+				args = append(args, "--s3-bucket", build.S3Bucket)
+			}
+			if build.S3Endpoint != "" {
+				args = append(args, "--s3-endpoint", build.S3Endpoint)
+			}
+			if build.S3Region != "" {
+				args = append(args, "--s3-region", build.S3Region)
+			}
+			if build.S3Key != "" {
+				args = append(args, "--s3-key", build.S3Key)
+			}
+			if build.S3Secret != "" {
+				args = append(args, "--s3-secret", build.S3Secret)
+			}
+			if build.S3UseSSL {
+				args = append(args, "--s3-use-ssl=true")
+			}
+		}
 	}
 
 	if build.AutoLabel {
@@ -303,14 +336,14 @@ func commandTag(build Build, tag string) *exec.Cmd {
 		target = fmt.Sprintf("%s:%s", build.Repo, tag)
 	)
 	return exec.Command(
-		buildahExe, "tag", source, target,
+		buildahExe, "tag", "--storage-driver", "vfs", source, target,
 	)
 }
 
 // helper function to create the docker push command.
 func commandPush(build Build, tag string) *exec.Cmd {
 	target := fmt.Sprintf("%s:%s", build.Repo, tag)
-	return exec.Command(buildahExe, "push", target)
+	return exec.Command(buildahExe, "push", "--storage-driver", "vfs", target)
 }
 
 // helper to check if args match "docker prune"
@@ -324,7 +357,7 @@ func isCommandRmi(args []string) bool {
 }
 
 func commandRmi(tag string) *exec.Cmd {
-	return exec.Command(buildahExe, "rmi", tag)
+	return exec.Command(buildahExe, "--storage-driver", "vfs", "rmi", tag)
 }
 
 // trace writes each command to stdout with the command wrapped in an xml

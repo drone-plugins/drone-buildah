@@ -182,40 +182,45 @@ func main() {
 			Usage:  "additional host:IP mapping",
 			EnvVar: "PLUGIN_ADD_HOST",
 		},
-		cli.StringSliceFlag{
+		cli.StringFlag{
 			Name:   "s3-local-cache-dir",
 			Usage:  "local directory for S3 based cache",
-			EnvVar: "S3_LOCAL_CACHE_DIR",
+			EnvVar: "PLUGIN_S3_LOCAL_CACHE_DIR",
 		},
-		cli.StringSliceFlag{
+		cli.StringFlag{
 			Name:   "s3-bucket",
 			Usage:  "S3 bucket name",
-			EnvVar: "S3_BUCKET",
+			EnvVar: "PLUGIN_S3_BUCKET",
 		},
-		cli.StringSliceFlag{
+		cli.StringFlag{
 			Name:   "s3-endpoint",
 			Usage:  "S3 endpoint address",
-			EnvVar: "S3_END_POINT",
+			EnvVar: "PLUGIN_S3_ENDPOINT",
 		},
-		cli.StringSliceFlag{
+		cli.StringFlag{
 			Name:   "s3-region",
 			Usage:  "S3 region",
-			EnvVar: "S3_REGION",
+			EnvVar: "PLUGIN_S3_REGION",
 		},
-		cli.StringSliceFlag{
+		cli.StringFlag{
 			Name:   "s3-key",
 			Usage:  "S3 access key",
-			EnvVar: "S3_KEY",
+			EnvVar: "PLUGIN_S3_ACCESS_KEY",
 		},
-		cli.StringSliceFlag{
+		cli.StringFlag{
 			Name:   "s3-secret",
 			Usage:  "S3 access secret",
-			EnvVar: "S3_SECRET",
+			EnvVar: "PLUGIN_S3_SECRET",
 		},
-		cli.StringSliceFlag{
+		cli.BoolFlag{
 			Name:   "s3-use-ssl",
 			Usage:  "Enable SSL for S3 connections",
-			EnvVar: "S3_USE_SSL",
+			EnvVar: "PLUGIN_S3_USE_SSL",
+		},
+		cli.BoolFlag{
+			Name:   "layers",
+			Usage:  "User Layers",
+			EnvVar: "PLUGIN_LAYERS",
 		},
 	}
 
@@ -256,6 +261,14 @@ func run(c *cli.Context) error {
 			NoCache:     c.Bool("no-cache"),
 			AddHost:     c.StringSlice("add-host"),
 			Quiet:       c.Bool("quiet"),
+			S3CacheDir:  c.String("s3-local-cache-dir"),
+			S3Bucket:    c.String("s3-bucket"),
+			S3Endpoint:  c.String("s3-endpoint"),
+			S3Region:    c.String("s3-region"),
+			S3Key:       c.String("s3-key"),
+			S3Secret:    c.String("s3-secret"),
+			S3UseSSL:    c.Bool("s3-use-ssl"),
+			Layers:      c.Bool("layers"),
 		},
 	}
 
