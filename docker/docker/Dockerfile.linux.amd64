@@ -5,7 +5,7 @@ WORKDIR /home/build
 RUN export STORAGE_DRIVER=vfs
 # Add plugin binary
 ADD release/linux/amd64/drone-docker /bin/
-ADD prebuilt/buildah /bin/
-ADD prebuilt/imgtype /bin/
-ADD prebuilt/copy /bin/
+ADD buildah-binaries/bin/buildah /bin/
+ADD buildah-binaries/bin/imgtype /bin/
+ADD buildah-binaries/bin/copy /bin/
 ENTRYPOINT ["/bin/drone-docker"]
