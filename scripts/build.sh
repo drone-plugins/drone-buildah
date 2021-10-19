@@ -15,10 +15,3 @@ GOOS=linux GOARCH=amd64 go build -o release/linux/amd64/drone-ecr    ./cmd/drone
 GOOS=linux GOARCH=amd64 go build -o release/linux/amd64/drone-docker ./cmd/drone-docker
 GOOS=linux GOARCH=amd64 go build -o release/linux/amd64/drone-acr    ./cmd/drone-acr
 GOOS=linux GOARCH=amd64 go build -o release/linux/amd64/drone-heroku   ./cmd/drone-heroku
-
-#build buildah binaries
-docker build -f Dockerfile-build-buildah -t buildah-dev .
-
-docker container create --name extract buildah-dev  
-docker container cp extract:/root/buildah/src/github.com/containers/buildah/bin/. release/linux/amd64/
-docker container rm -f extract

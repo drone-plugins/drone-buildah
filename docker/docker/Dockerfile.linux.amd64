@@ -1,3 +1,33 @@
+FROM fedora
+
+RUN dnf -y install \
+    make \
+    golang \
+    bats \
+    btrfs-progs-devel \
+    device-mapper-devel \
+    glib2-devel \
+    gpgme-devel \
+    libassuan-devel \
+    libseccomp-devel \
+    git \
+    bzip2 \
+    go-md2man \
+    runc \
+    containers-common \
+    skopeo-containers
+
+# Workaround - the first install somehow leaves the golang in a bad state
+RUN dnf -y install golang
+
+RUN mkdir /root/buildah && \
+    cd /root/buildah && \
+    git clone https://github.com/harness/buildah.git ./src/github.com/containers/buildah
+
+RUN cd /root/buildah/src/github.com/containers/buildah && make && sudo make install
+
+
+
 FROM quay.io/buildah/stable:v1.23.0
 
 USER build
@@ -5,7 +35,6 @@ WORKDIR /home/build
 RUN export STORAGE_DRIVER=vfs
 # Add plugin binary
 ADD release/linux/amd64/drone-docker /bin/
-ADD release/linux/amd64/buildah /bin/
-ADD release/linux/amd64/imgtype /bin/
-ADD release/linux/amd64/copy /bin/
+COPY --from=0 /root/buildah/src/github.com/containers/buildah/bin/. /bin/
+
 ENTRYPOINT ["/bin/drone-docker"]
