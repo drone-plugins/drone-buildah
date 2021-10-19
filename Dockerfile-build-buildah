@@ -20,12 +20,6 @@ RUN dnf -y install \
 # Workaround - the first install somehow leaves the golang in a bad state
 RUN dnf -y install golang
 
-ARG GIT_USER_NAME
-RUN git config --global user.name "$GIT_USER_NAME"
-
-ARG GIT_USER_EMAIL
-RUN git config --global user.email "$GIT_USER_EMAIL"
-
 RUN mkdir /root/buildah && \
     cd /root/buildah && \
     git clone https://github.com/harness/buildah.git ./src/github.com/containers/buildah
