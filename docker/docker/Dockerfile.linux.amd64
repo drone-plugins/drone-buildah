@@ -1,22 +1,40 @@
-# Source for dockerfile:
-# https://github.com/containers/buildah/blob/master/docs/tutorials/05-openshift-rootless-bud.md
-FROM quay.io/buildah/stable:v1.14.8
+FROM fedora
 
-RUN touch /etc/subgid /etc/subuid \
- && chmod g=u /etc/subgid /etc/subuid /etc/passwd \
- && echo build:10000:65536 > /etc/subuid \
- && echo build:10000:65536 > /etc/subgid
+RUN dnf -y install \
+    make \
+    golang \
+    bats \
+    btrfs-progs-devel \
+    device-mapper-devel \
+    glib2-devel \
+    gpgme-devel \
+    libassuan-devel \
+    libseccomp-devel \
+    git \
+    bzip2 \
+    go-md2man \
+    runc \
+    containers-common \
+    skopeo-containers
 
-# Use chroot since the default runc does not work when running rootless
-RUN echo "export BUILDAH_ISOLATION=chroot" >> /home/build/.bashrc
+# Workaround - the first install somehow leaves the golang in a bad state
+RUN dnf -y install golang
 
-# Use VFS since fuse does not work
-RUN mkdir -p /home/build/.config/containers \
- && echo "driver=\"vfs\"" > /home/build/.config/containers/storage.conf
+RUN mkdir /root/buildah && \
+    cd /root/buildah && \
+    git clone https://github.com/harness/buildah.git ./src/github.com/containers/buildah
+
+RUN cd /root/buildah/src/github.com/containers/buildah && make && sudo make install
+
+
+
+FROM quay.io/buildah/stable:v1.23.0
 
 USER build
 WORKDIR /home/build
-
+RUN export STORAGE_DRIVER=vfs
 # Add plugin binary
 ADD release/linux/amd64/drone-docker /bin/
+COPY --from=0 /root/buildah/src/github.com/containers/buildah/bin/. /bin/
+
 ENTRYPOINT ["/bin/drone-docker"]

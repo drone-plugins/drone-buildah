@@ -182,6 +182,46 @@ func main() {
 			Usage:  "additional host:IP mapping",
 			EnvVar: "PLUGIN_ADD_HOST",
 		},
+		cli.StringFlag{
+			Name:   "s3-local-cache-dir",
+			Usage:  "local directory for S3 based cache",
+			EnvVar: "PLUGIN_S3_LOCAL_CACHE_DIR",
+		},
+		cli.StringFlag{
+			Name:   "s3-bucket",
+			Usage:  "S3 bucket name",
+			EnvVar: "PLUGIN_S3_BUCKET",
+		},
+		cli.StringFlag{
+			Name:   "s3-endpoint",
+			Usage:  "S3 endpoint address",
+			EnvVar: "PLUGIN_S3_ENDPOINT",
+		},
+		cli.StringFlag{
+			Name:   "s3-region",
+			Usage:  "S3 region",
+			EnvVar: "PLUGIN_S3_REGION",
+		},
+		cli.StringFlag{
+			Name:   "s3-key",
+			Usage:  "S3 access key",
+			EnvVar: "PLUGIN_S3_ACCESS_KEY",
+		},
+		cli.StringFlag{
+			Name:   "s3-secret",
+			Usage:  "S3 access secret",
+			EnvVar: "PLUGIN_S3_SECRET",
+		},
+		cli.BoolFlag{
+			Name:   "s3-use-ssl",
+			Usage:  "Enable SSL for S3 connections",
+			EnvVar: "PLUGIN_S3_USE_SSL",
+		},
+		cli.BoolFlag{
+			Name:   "layers",
+			Usage:  "User Layers",
+			EnvVar: "PLUGIN_LAYERS",
+		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
@@ -221,6 +261,14 @@ func run(c *cli.Context) error {
 			NoCache:     c.Bool("no-cache"),
 			AddHost:     c.StringSlice("add-host"),
 			Quiet:       c.Bool("quiet"),
+			S3CacheDir:  c.String("s3-local-cache-dir"),
+			S3Bucket:    c.String("s3-bucket"),
+			S3Endpoint:  c.String("s3-endpoint"),
+			S3Region:    c.String("s3-region"),
+			S3Key:       c.String("s3-key"),
+			S3Secret:    c.String("s3-secret"),
+			S3UseSSL:    c.Bool("s3-use-ssl"),
+			Layers:      c.Bool("layers"),
 		},
 	}
 
