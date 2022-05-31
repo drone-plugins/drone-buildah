@@ -8,7 +8,7 @@
 [![Go Doc](https://godoc.org/github.com/drone-plugins/drone-buildah?status.svg)](http://godoc.org/github.com/drone-plugins/drone-buildah)
 [![Go Report](https://goreportcard.com/badge/github.com/drone-plugins/drone-buildah)](https://goreportcard.com/report/github.com/drone-plugins/drone-buildah)
 
-Drone plugin uses buildah to build and publish Docker images to a container registry. For the usage information and a listing of the available options please take a look at [the docs](http://plugins.drone.io/drone-plugins/drone-buildah/).
+Drone plugin uses buildah to build and publish Docker images to a container registry. For the usage information and a listing of the available options please take a look at [the docs](https://plugins.drone.io/plugins/buildah).
 
 ## Build
 
