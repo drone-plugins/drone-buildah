@@ -1,6 +1,12 @@
 kind: pipeline
-type: docker
 name: default
+type: vm
+
+platform:
+  os: linux
+  arch: amd64
+pool:
+  use: ubuntu
 
 steps:
 - name: build
@@ -96,12 +102,14 @@ steps:
 
 ---
 kind: pipeline
-type: docker
+type: vm
 name: notifications-docker
 
 platform:
   os: linux
   arch: amd64
+pool:
+  use: ubuntu
 
 steps:
 - name: manifest-docker
