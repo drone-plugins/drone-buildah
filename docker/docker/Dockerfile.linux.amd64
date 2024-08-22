@@ -1,4 +1,4 @@
-FROM quay.io/buildah/stable:v1.23.0
+FROM quay.io/buildah/stable:v1.36.0
 
 # Set up the working directory
 USER build
