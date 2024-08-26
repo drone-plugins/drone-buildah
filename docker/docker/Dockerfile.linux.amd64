@@ -3,7 +3,9 @@ FROM quay.io/buildah/stable:v1.36.0
 # Set up the working directory
 USER build
 WORKDIR /home/build
-RUN export STORAGE_DRIVER=vfs
+
+# Set the storage driver as an environment variable
+ENV STORAGE_DRIVER=vfs
 
 # Add the plugin binary
 ADD release/linux/amd64/drone-docker /bin/
