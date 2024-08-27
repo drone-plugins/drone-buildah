@@ -4,6 +4,9 @@ FROM quay.io/buildah/stable:v1.26.0
 USER build
 WORKDIR /home/build
 
+# Create necessary CNI directories with correct permissions
+RUN mkdir -p /home/build/.config/cni/net.d/ && chmod -R 755 /home/build/.config/cni
+
 # Copy the custom containers.conf
 COPY docker/docker/containers.conf /home/build/.config/containers/containers.conf
 
