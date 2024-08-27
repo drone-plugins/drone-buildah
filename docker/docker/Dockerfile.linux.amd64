@@ -7,7 +7,6 @@ WORKDIR /home/build
 RUN mkdir -p /home/build/.config/cni/net.d/ && chmod -R 755 /home/build/.config/cni
 
 # Copy the custom containers.conf and set permissions before switching to build user
-COPY docker/docker/containers.conf /home/build/.config/containers/containers.conf
 RUN mkdir -p /home/build/.local/share/containers/storage && \
     mkdir -p /home/build/.local/share/containers/run && \
     chmod -R 755 /home/build/.local/share/containers && \
