@@ -15,6 +15,14 @@ ENV XDG_CONFIG_HOME=/home/build/.config
 ENV CONTAINERS_CONF=/home/build/.config/containers/containers.conf
 ENV CONTAINERS_CONF_OVERRIDE=/home/build/.config/containers/containers.conf
 
+# Ensure proper permissions on storage directories
+RUN mkdir -p /home/build/.local/share/containers/storage && \
+    mkdir -p /home/build/.local/share/containers/run && \
+    chmod -R 755 /home/build/.local/share/containers
+
+# Ensure the container has the necessary permissions for Buildah
+RUN chown -R build:build /home/build/.config /home/build/.local
+
 # Add the plugin binary
 ADD release/linux/amd64/drone-docker /bin/
 
