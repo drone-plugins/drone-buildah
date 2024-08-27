@@ -4,9 +4,11 @@ FROM quay.io/buildah/stable:v1.36.0
 USER build
 WORKDIR /home/build
 
-# Set environment variables
-ENV STORAGE_DRIVER=vfs
-ENV STORAGE_PATH=/home/build/.local/share/containers/storage
+# Copy the custom containers.conf
+COPY containers.conf /home/build/.config/containers/containers.conf
+
+# Set XDG_CONFIG_HOME to point to the correct config directory
+ENV XDG_CONFIG_HOME=/home/build/.config
 
 # Add the plugin binary
 ADD release/linux/amd64/drone-docker /bin/
