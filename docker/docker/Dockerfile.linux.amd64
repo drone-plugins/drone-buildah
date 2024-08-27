@@ -13,6 +13,7 @@ COPY docker/docker/containers.conf /home/build/.config/containers/containers.con
 # Set XDG_CONFIG_HOME to point to the correct config directory
 ENV XDG_CONFIG_HOME=/home/build/.config
 ENV CONTAINERS_CONF=/home/build/.config/containers/containers.conf
+ENV CONTAINERS_CONF_OVERRIDE=/home/build/.config/containers/containers.conf
 
 # Add the plugin binary
 ADD release/linux/amd64/drone-docker /bin/
