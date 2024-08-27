@@ -5,7 +5,7 @@ USER build
 WORKDIR /home/build
 
 # Copy the custom containers.conf
-COPY containers.conf /home/build/.config/containers/containers.conf
+COPY docker/docker/containers.conf /home/build/.config/containers/containers.conf
 
 # Set XDG_CONFIG_HOME to point to the correct config directory
 ENV XDG_CONFIG_HOME=/home/build/.config
