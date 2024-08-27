@@ -1,41 +1,28 @@
-FROM registry.fedoraproject.org/fedora:latest
-ARG FLAVOR=stable
-
-RUN dnf -y install \
-    make \
-    golang \
-    bats \
-    btrfs-progs-devel \
-    device-mapper-devel \
-    glib2-devel \
-    gpgme-devel \
-    libassuan-devel \
-    libseccomp-devel \
-    git \
-    bzip2 \
-    go-md2man \
-    runc \
-    containers-common \
-    skopeo-containers
-
-# Workaround - the first install somehow leaves the golang in a bad state
-RUN dnf -y install golang
-
-RUN mkdir /root/buildah && \
-    cd /root/buildah && \
-    git clone https://github.com/harness/buildah.git ./src/github.com/containers/buildah
-
-RUN cd /root/buildah/src/github.com/containers/buildah && make && sudo make install
-
-
-
 FROM quay.io/buildah/stable:v1.23.0
 
-USER build
+# Set up the working directory
 WORKDIR /home/build
-RUN export STORAGE_DRIVER=vfs
-# Add plugin binary
-ADD release/linux/amd64/drone-docker /bin/
-COPY --from=0 /root/buildah/src/github.com/containers/buildah/bin/. /bin/
 
+# Create necessary CNI directories with correct permissions
+RUN mkdir -p /home/build/.config/cni/net.d/ && chmod -R 755 /home/build/.config/cni
+
+# Copy the custom containers.conf and set permissions before switching to build user
+COPY docker/docker/containers.conf /home/build/.config/containers/containers.conf
+RUN mkdir -p /home/build/.local/share/containers/storage && \
+    mkdir -p /home/build/.local/share/containers/run && \
+    chmod -R 755 /home/build/.local/share/containers && \
+    chown -R 1000:1000 /home/build/.config /home/build/.local
+
+# Now switch to the non-root user
+USER build
+
+# Set XDG_CONFIG_HOME to point to the correct config directory
+ENV XDG_CONFIG_HOME=/home/build/.config
+ENV CONTAINERS_CONF=/home/build/.config/containers/containers.conf
+ENV CONTAINERS_CONF_OVERRIDE=/home/build/.config/containers/containers.conf
+
+# Add the plugin binary
+ADD release/linux/amd64/drone-docker /bin/
+
+# Set the entrypoint to the plugin binary
 ENTRYPOINT ["/bin/drone-docker"]
