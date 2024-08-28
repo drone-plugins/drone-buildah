@@ -1,7 +1,7 @@
 FROM quay.io/buildah/stable:v1.26.0
 
 USER root
-COPY storage.conf /etc/containers/storage.conf
+COPY docker/docker/storage.conf /etc/containers/storage.conf
 RUN cat /etc/containers/storage.conf \
     > /home/build/.config/containers/storage.conf && \
     chown build:build /home/build/.config/containers/storage.conf
