@@ -6,6 +6,8 @@ COPY docker/docker/containers.conf /etc/containers/containers.conf
 
 # Create necessary directories if they don't already exist
 RUN mkdir -p /home/build/.config/containers \
+    && mkdir -p /home/build/.local/share/containers/storage/overlay \
+    && chown -R build:build /home/build/.local \
     && mkdir -p /home/build/.config/cni \
     && chown -R build:build /home/build/.config \
     && chown :build /etc/containers/containers.conf
