@@ -199,7 +199,6 @@ func commandBuild(build Build) *exec.Cmd {
 	args := []string{
 		"bud",
 		"--storage-driver", "vfs",
-		"--config", "/home/build/.config/containers/containers.conf",
 		"-f", build.Dockerfile,
 	}
 
@@ -339,7 +338,6 @@ func commandTag(build Build, tag string) *exec.Cmd {
 	return exec.Command(
 		buildahExe, "tag",
 		"--storage-driver", "vfs",
-		"--config", "/home/build/.config/containers/containers.conf",
 		source, target,
 	)
 }
@@ -349,7 +347,6 @@ func commandPush(build Build, tag string) *exec.Cmd {
 	target := fmt.Sprintf("%s:%s", build.Repo, tag)
 	return exec.Command(buildahExe, "push",
 		"--storage-driver", "vfs",
-		"--config", "/home/build/.config/containers/containers.conf",
 		target)
 }
 
@@ -366,7 +363,6 @@ func isCommandRmi(args []string) bool {
 func commandRmi(tag string) *exec.Cmd {
 	return exec.Command(buildahExe,
 		"--storage-driver", "vfs",
-		"--config", "/home/build/.config/containers/containers.conf",
 		"rmi", tag)
 }
 
