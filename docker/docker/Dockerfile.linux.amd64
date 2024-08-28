@@ -30,4 +30,4 @@ ENV CONTAINERS_CONF_OVERRIDE=/home/build/.config/containers/containers.conf
 # Add the plugin binary
 ADD release/linux/amd64/drone-docker /bin/
 
-ENTRYPOINT ["sh", "-c", "CONTAINERS_CONF=/home/build/.config/containers/containers.conf /bin/drone-docker"]
+ENTRYPOINT ["/bin/drone-docker"]
