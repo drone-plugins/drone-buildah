@@ -3,6 +3,9 @@ FROM quay.io/buildah/stable:v1.26.0
 USER root
 COPY docker/docker/storage.conf /etc/containers/storage.conf
 
+# Move system-level containers.conf to avoid conflicts
+RUN mv /etc/containers/containers.conf /etc/containers/containers.conf.backup
+
 # Create necessary directories if they don't already exist
 RUN mkdir -p /home/build/.config/containers \
     && mkdir -p /home/build/.config/cni \
