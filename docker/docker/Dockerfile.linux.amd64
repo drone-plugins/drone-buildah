@@ -4,7 +4,10 @@ USER root
 COPY docker/docker/storage.conf /etc/containers/storage.conf
 
 # Create necessary directories if they don't already exist
-RUN mkdir -p /home/build/.config/containers
+RUN mkdir -p /home/build/.config/containers \
+    && mkdir -p /home/build/.config/cni \
+    && chown build:build /home/build/.config/containers \
+    && chown build:build /home/build/.config/cni
 
 # Update the storage.conf file to use vfs
 RUN cp /etc/containers/storage.conf /home/build/.config/containers/storage.conf \
