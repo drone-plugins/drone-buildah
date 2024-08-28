@@ -17,10 +17,13 @@ RUN mkdir -p /home/build/.config/containers \
 RUN cp /etc/containers/storage.conf /home/build/.config/containers/storage.conf \
     && cp /etc/containers/containers.conf /home/build/.config/containers/containers.conf \
     && chown build:build /home/build/.config/containers/storage.conf \
-    && chown build:build /home/build/.config/containers/containers.conf
+    && chown build:build /home/build/.config/containers/containers.conf \
+    && echo "export BUILDAH_ISOLATION=chroot" >> /home/build/.bashrc
+
 
 # Switch back to the non-root build user
 USER build
+WORKDIR /home/build
 
 # Set the necessary environment variables for the build user
 ENV XDG_CONFIG_HOME=/home/build/.config
