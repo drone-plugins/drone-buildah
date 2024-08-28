@@ -1,26 +1,4 @@
-FROM quay.io/buildah/stable:v1.23.0
-
-# Set up the working directory
-WORKDIR /home/build
-
-# Create necessary CNI directories with correct permissions
-RUN mkdir -p /home/build/.config/cni/net.d/ && chmod -R 755 /home/build/.config/cni
-
-RUN touch /home/build/.config/containers/containers.conf
-
-# Copy the custom containers.conf and set permissions before switching to build user
-RUN mkdir -p /home/build/.local/share/containers/storage && \
-    mkdir -p /home/build/.local/share/containers/run && \
-    chmod -R 755 /home/build/.local/share/containers && \
-    chown -R 1000:1000 /home/build/.config /home/build/.local
-
-# Now switch to the non-root user
-USER build
-
-# Set XDG_CONFIG_HOME to point to the correct config directory
-ENV XDG_CONFIG_HOME=/home/build/.config
-ENV CONTAINERS_CONF=/home/build/.config/containers/containers.conf
-ENV CONTAINERS_CONF_OVERRIDE=/home/build/.config/containers/containers.conf
+FROM quay.io/buildah/stable:v1.26.0
 
 # Add the plugin binary
 ADD release/linux/amd64/drone-docker /bin/
