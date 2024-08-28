@@ -2,8 +2,23 @@ FROM quay.io/buildah/stable:v1.26.0
 
 USER root
 COPY docker/docker/storage.conf /etc/containers/storage.conf
-RUN cp /etc/containers/storage.conf /home/build/.config/containers/ && \
-    chown build:build /home/build/.config/containers/storage.conf
+
+# Create necessary directories if they don't already exist
+RUN mkdir -p /home/build/.config/containers
+
+# Update the storage.conf file to use vfs
+RUN cp /etc/containers/storage.conf /home/build/.config/containers/storage.conf \
+    && cp /etc/containers/containers.conf /home/build/.config/containers/containers.conf \
+    && chown build:build /home/build/.config/containers/storage.conf \
+    && chown build:build /home/build/.config/containers/containers.conf
+
+# Switch back to the non-root build user
+USER build
+
+# Set the necessary environment variables for the build user
+ENV XDG_CONFIG_HOME=/home/build/.config
+ENV CONTAINERS_CONF=/home/build/.config/containers/containers.conf
+ENV CONTAINERS_CONF_OVERRIDE=/home/build/.config/containers/containers.conf
 
 # Add the plugin binary
 ADD release/linux/amd64/drone-docker /bin/
