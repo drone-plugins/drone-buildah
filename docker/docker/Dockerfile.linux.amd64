@@ -8,6 +8,8 @@ RUN mkdir -p /home/build/.config/containers \
     && mkdir -p /home/build/.config/cni \
     && chown -R build:build /home/build/.config
 
+COPY docker/docker/containers.conf /home/build/.config/containers/containers.conf
+
 # Update the storage.conf and containers.conf for the build user
 RUN cp /etc/containers/storage.conf /home/build/.config/containers/storage.conf \
     && cp /etc/containers/containers.conf /home/build/.config/containers/containers.conf \
