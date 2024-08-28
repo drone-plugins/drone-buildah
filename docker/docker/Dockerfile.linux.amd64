@@ -11,7 +11,7 @@ RUN mkdir -p /home/build/.config/containers \
     && mkdir -p /home/build/.config/cni \
     && chown -R build:build /home/build/.config \
     && chown :build /etc/containers/containers.conf \
-    && chown :build /usr/bin/fuse-overlayfs \
+    && chown :build /usr/bin/fuse-overlayfs
 
 # Update the storage.conf and containers.conf for the build user
 RUN cp /etc/containers/storage.conf /home/build/.config/containers/storage.conf \
