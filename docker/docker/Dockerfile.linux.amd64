@@ -2,13 +2,13 @@ FROM quay.io/buildah/stable:v1.26.0
 
 USER root
 COPY docker/docker/storage.conf /etc/containers/storage.conf
+COPY docker/docker/containers.conf /etc/containers/containers.conf
 
 # Create necessary directories if they don't already exist
 RUN mkdir -p /home/build/.config/containers \
     && mkdir -p /home/build/.config/cni \
-    && chown -R build:build /home/build/.config
-
-COPY docker/docker/containers.conf /home/build/.config/containers/containers.conf
+    && chown -R build:build /home/build/.config \
+    && chown :build /etc/containers/containers.conf
 
 # Update the storage.conf and containers.conf for the build user
 RUN cp /etc/containers/storage.conf /home/build/.config/containers/storage.conf \
