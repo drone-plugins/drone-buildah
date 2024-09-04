@@ -1,12 +1,36 @@
-FROM quay.io/buildah/stable:v1.36.0
+FROM quay.io/buildah/stable:v1.26.0
 
-# Set up the working directory
+USER root
+COPY docker/docker/storage.conf /etc/containers/storage.conf
+COPY docker/docker/containers.conf /etc/containers/containers.conf
+
+# Create necessary directories if they don't already exist
+RUN mkdir -p /home/build/.config/containers \
+    && mkdir -p /home/build/.local/share/containers/storage/overlay \
+    && chown -R build:build /home/build/.local \
+    && mkdir -p /home/build/.config/cni \
+    && chown -R build:build /home/build/.config \
+    && chown :build /etc/containers/containers.conf \
+    && chown :build /usr/bin/fuse-overlayfs
+
+# Update the storage.conf and containers.conf for the build user
+RUN cp /etc/containers/storage.conf /home/build/.config/containers/storage.conf \
+    && cp /etc/containers/containers.conf /home/build/.config/containers/containers.conf \
+    && chown build:build /home/build/.config/containers/storage.conf \
+    && chown build:build /home/build/.config/containers/containers.conf \
+    && echo "export BUILDAH_ISOLATION=chroot" >> /home/build/.bashrc
+
+
+# Switch back to the non-root build user
 USER build
 WORKDIR /home/build
-RUN export STORAGE_DRIVER=vfs
+
+# Set the necessary environment variables for the build user
+ENV XDG_CONFIG_HOME=/home/build/.config
+ENV CONTAINERS_CONF=/home/build/.config/containers/containers.conf
+ENV CONTAINERS_CONF_OVERRIDE=/home/build/.config/containers/containers.conf
 
 # Add the plugin binary
 ADD release/linux/amd64/drone-docker /bin/
 
-# Set the entrypoint to the plugin binary
 ENTRYPOINT ["/bin/drone-docker"]

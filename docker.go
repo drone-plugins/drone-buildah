@@ -336,14 +336,18 @@ func commandTag(build Build, tag string) *exec.Cmd {
 		target = fmt.Sprintf("%s:%s", build.Repo, tag)
 	)
 	return exec.Command(
-		buildahExe, "tag", "--storage-driver", "vfs", source, target,
+		buildahExe, "tag",
+		"--storage-driver", "vfs",
+		source, target,
 	)
 }
 
 // helper function to create the docker push command.
 func commandPush(build Build, tag string) *exec.Cmd {
 	target := fmt.Sprintf("%s:%s", build.Repo, tag)
-	return exec.Command(buildahExe, "push", "--storage-driver", "vfs", target)
+	return exec.Command(buildahExe, "push",
+		"--storage-driver", "vfs",
+		target)
 }
 
 // helper to check if args match "docker prune"
@@ -357,7 +361,9 @@ func isCommandRmi(args []string) bool {
 }
 
 func commandRmi(tag string) *exec.Cmd {
-	return exec.Command(buildahExe, "--storage-driver", "vfs", "rmi", tag)
+	return exec.Command(buildahExe,
+		"--storage-driver", "vfs",
+		"rmi", tag)
 }
 
 // trace writes each command to stdout with the command wrapped in an xml
