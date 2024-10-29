@@ -18,7 +18,7 @@ RUN cp /etc/containers/storage.conf /home/build/.config/containers/storage.conf 
     && cp /etc/containers/containers.conf /home/build/.config/containers/containers.conf \
     && chown build:build /home/build/.config/containers/storage.conf \
     && chown build:build /home/build/.config/containers/containers.conf \
-    && echo "export BUILDAH_ISOLATION=chroot" >> /home/build/.bashrc
+    && echo "export BUILDAH_ISOLATION=rootless" >> /home/build/.bashrc
 
 
 # Switch back to the non-root build user
