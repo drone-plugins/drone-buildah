@@ -198,7 +198,7 @@ func commandInfo() *exec.Cmd {
 func commandBuild(build Build) *exec.Cmd {
 	args := []string{
 		"bud",
-		"--storage-driver", "fuse-overlayfs",
+		"--storage-driver", "vfs",
 		"--log-level=debug",
 		"-f", build.Dockerfile,
 	}
