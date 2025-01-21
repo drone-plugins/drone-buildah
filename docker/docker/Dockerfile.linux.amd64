@@ -1,20 +1,25 @@
 FROM quay.io/buildah/stable:v1.36.0
 
+USER root
+RUN microdnf install fuse-overlayfs shadow-utils && microdnf clean all
 RUN touch /etc/subgid /etc/subuid \
  && chmod g=u /etc/subgid /etc/subuid /etc/passwd \
  && echo build:10000:65536 > /etc/subuid \
  && echo build:10000:65536 > /etc/subgid
 
+USER build
 # Use chroot since the default runc does not work when running rootless
 ENV _BUILDAH_STARTED_IN_USERNS=""
 ENV BUILDAH_ISOLATION=chroot
 ENV STORAGE_DRIVER=vfs
+ENV PATH=$PATH:/usr/bin/
 
 # Use overlay
 RUN mkdir -p /home/build/.config/containers \
- && (echo '[storage]';echo 'driver = "vfs"') > /home/build/.config/containers/storage.conf
+ && echo '[storage]'                                > /home/build/.config/containers/storage.conf \
+ && echo '  driver = "overlay"'                    >> /home/build/.config/containers/storage.conf \
+ && echo '  mount_program = "/usr/bin/fuse-overlayfs"' >> /home/build/.config/containers/storage.conf
 
-USER build
 WORKDIR /home/build
 
 # Add the plugin binary
