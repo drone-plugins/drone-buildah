@@ -6,6 +6,7 @@ RUN touch /etc/subgid /etc/subuid \
  && echo build:10000:65536 > /etc/subgid
 
 # Use chroot since the default runc does not work when running rootless
+ENV _BUILDAH_STARTED_IN_USERNS=""
 ENV BUILDAH_ISOLATION=chroot
 ENV STORAGE_DRIVER=vfs
 
