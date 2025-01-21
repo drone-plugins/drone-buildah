@@ -6,7 +6,8 @@ RUN touch /etc/subgid /etc/subuid \
  && echo build:10000:65536 > /etc/subgid
 
 # Use chroot since the default runc does not work when running rootless
-RUN echo "export BUILDAH_ISOLATION=chroot" >> /home/build/.bashrc
+ENV BUILDAH_ISOLATION=chroot
+ENV STORAGE_DRIVER=vfs
 
 # Use overlay
 RUN mkdir -p /home/build/.config/containers \
