@@ -1,7 +1,9 @@
 FROM quay.io/buildah/stable:v1.36.0
 
 USER root
-RUN microdnf install fuse-overlayfs shadow-utils && microdnf clean all
+
+RUN dnf -y install fuse-overlayfs shadow-utils && dnf clean all
+
 RUN touch /etc/subgid /etc/subuid \
  && chmod g=u /etc/subgid /etc/subuid /etc/passwd \
  && echo build:10000:65536 > /etc/subuid \
