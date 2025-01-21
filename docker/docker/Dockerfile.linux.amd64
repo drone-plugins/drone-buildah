@@ -1,9 +1,16 @@
 FROM quay.io/buildah/stable:v1.36.0
 
-# Set up the working directory
+RUN touch /etc/subgid /etc/subuid \
+ && chmod g=u /etc/subgid /etc/subuid /etc/passwd \
+ && echo build:10000:65536 > /etc/subuid \
+ && echo build:10000:65536 > /etc/subgid
+
+# Use overlay
+RUN mkdir -p /home/build/.config/containers \
+ && (echo '[storage]';echo 'driver = "overlay"') > /home/build/.config/containers/storage.conf
+
 USER build
 WORKDIR /home/build
-RUN export STORAGE_DRIVER=vfs
 
 # Add the plugin binary
 ADD release/linux/amd64/drone-docker /bin/
