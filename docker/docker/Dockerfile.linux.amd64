@@ -10,7 +10,7 @@ RUN echo "export BUILDAH_ISOLATION=chroot" >> /home/build/.bashrc
 
 # Use overlay
 RUN mkdir -p /home/build/.config/containers \
- && (echo '[storage]';echo 'driver = "overlay"') > /home/build/.config/containers/storage.conf
+ && (echo '[storage]';echo 'driver = "vfs"') > /home/build/.config/containers/storage.conf
 
 USER build
 WORKDIR /home/build
