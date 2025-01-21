@@ -20,7 +20,8 @@ ENV PATH=$PATH:/usr/bin/
 RUN mkdir -p /home/build/.config/containers \
  && echo '[storage]'                                > /home/build/.config/containers/storage.conf \
  && echo '  driver = "overlay"'                    >> /home/build/.config/containers/storage.conf \
- && echo '  mount_program = "/usr/bin/fuse-overlayfs"' >> /home/build/.config/containers/storage.conf
+ && echo '[storage.options.overlay]'                  >> /home/build/.config/containers/storage.conf \
+ && echo '  mount_program = "/usr/bin/fuse-overlayfs"'>> /home/build/.config/containers/storage.conf
 
 WORKDIR /home/build
 
