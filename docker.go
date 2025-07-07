@@ -57,10 +57,13 @@ type (
 
 	// Plugin defines the Docker plugin parameters.
 	Plugin struct {
-		Login   Login // Docker login configuration
-		Build   Build // Docker build configuration
-		Dryrun  bool  // Docker push is skipped
-		Cleanup bool  // Docker purge is enabled
+		Login        Login  // Docker login configuration
+		Build        Build  // Docker build configuration
+		Dryrun       bool   // Docker push is skipped
+		Cleanup      bool   // Docker purge is enabled
+		PushOnly     bool   // Push only mode, skips build process
+		SourceTarPath string // Path to Docker image tar file to load and push
+		TarPath      string // Path to save Docker image as tar file
 	}
 )
 
@@ -105,6 +108,11 @@ func (p Plugin) Exec() error {
 		fmt.Println("Registry credentials or Docker config not provided. Guest mode enabled.")
 	}
 
+	// Check if we're in push-only mode
+	if p.PushOnly {
+		return p.pushOnly()
+	}
+
 	// add proxy build args
 	addProxyBuildArgs(&p.Build)
 
@@ -125,6 +133,26 @@ func (p Plugin) Exec() error {
 		if p.Dryrun == false {
 			cmds = append(cmds, commandPush(p.Build, tag)) // docker push
 		}
+	}
+
+	// If TarPath is specified, save the image to a tar file
+	if p.TarPath != "" {
+		// Create parent directories if they don't exist
+		dir := filepath.Dir(p.TarPath)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("error creating directories for tar file: %s", err)
+		}
+
+		// Save the image as tar
+		fmt.Println("Saving image to tar:", p.TarPath)
+		saveCmd := commandSaveTar(p.Build.Name, p.TarPath)
+		saveCmd.Stdout = os.Stdout
+		saveCmd.Stderr = os.Stderr
+		trace(saveCmd)
+		if err := saveCmd.Run(); err != nil {
+			return fmt.Errorf("error saving image to tar: %s", err)
+		}
+		fmt.Printf("Successfully saved image to %s\n", p.TarPath)
 	}
 
 	if p.Cleanup {
@@ -364,4 +392,115 @@ func commandRmi(tag string) *exec.Cmd {
 // tag so that it can be extracted and displayed in the logs.
 func trace(cmd *exec.Cmd) {
 	fmt.Fprintf(os.Stdout, "+ %s\n", strings.Join(cmd.Args, " "))
+}
+
+// pushOnly handles pushing images without building them
+func (p Plugin) pushOnly() error {
+	// If source tar path is provided, load the image first
+	if p.SourceTarPath != "" {
+		fileInfo, err := os.Stat(p.SourceTarPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return fmt.Errorf("source image tar file %s does not exist", p.SourceTarPath)
+			}
+			return fmt.Errorf("failed to access source image tar file: %s", err)
+		}
+
+		if !fileInfo.Mode().IsRegular() {
+			return fmt.Errorf("source image tar %s is not a regular file", p.SourceTarPath)
+		}
+
+		fmt.Println("Loading image from tar:", p.SourceTarPath)
+		loadCmd := commandLoadTar(p.SourceTarPath)
+		loadCmd.Stdout = os.Stdout
+		loadCmd.Stderr = os.Stderr
+		trace(loadCmd)
+		if err := loadCmd.Run(); err != nil {
+			return fmt.Errorf("failed to load image from tar: %s", err)
+		}
+	}
+
+	// Check for required tags
+	if len(p.Build.Tags) == 0 {
+		return fmt.Errorf("no tags specified for push")
+	}
+
+	// Check if source image exists in local daemon before pushing
+	sourceImage := p.Build.Name
+	if sourceImage == "" {
+		sourceImage = fmt.Sprintf("%s:%s", p.Build.Repo, p.Build.Tags[0])
+	}
+
+	// Verify the source image exists
+	existsCmd := commandImageExists(sourceImage)
+	existsCmd.Stdout = os.Stdout
+	existsCmd.Stderr = os.Stderr
+	trace(existsCmd)
+	if err := existsCmd.Run(); err != nil {
+		return fmt.Errorf("source image %s not found, cannot push: %s", sourceImage, err)
+	}
+
+	// For each tag, tag the source image (if needed) and push
+	for _, tag := range p.Build.Tags {
+		targetImage := fmt.Sprintf("%s:%s", p.Build.Repo, tag)
+		
+		// Skip tagging if source and target are identical
+		if sourceImage != targetImage {
+			fmt.Printf("Tagging %s as %s\n", sourceImage, targetImage)
+			tagCmd := commandTag(p.Build, tag)
+			tagCmd.Stdout = os.Stdout
+			tagCmd.Stderr = os.Stderr
+			trace(tagCmd)
+			if err := tagCmd.Run(); err != nil {
+				return fmt.Errorf("failed to tag image %s as %s: %s", sourceImage, targetImage, err)
+			}
+		}
+
+		// Push the image
+		fmt.Println("Pushing image:", targetImage)
+		pushCmd := commandPush(p.Build, tag)
+		pushCmd.Stdout = os.Stdout
+		pushCmd.Stderr = os.Stderr
+		trace(pushCmd)
+		if err := pushCmd.Run(); err != nil {
+			return fmt.Errorf("failed to push image %s: %s", targetImage, err)
+		}
+	}
+
+	// If TarPath is specified, save the image to a tar file
+	if p.TarPath != "" {
+		// Create parent directories if they don't exist
+		dir := filepath.Dir(p.TarPath)
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("error creating directories for tar file: %s", err)
+		}
+
+		// Save the image as tar
+		fmt.Println("Saving image to tar:", p.TarPath)
+		saveCmd := commandSaveTar(sourceImage, p.TarPath)
+		saveCmd.Stdout = os.Stdout
+		saveCmd.Stderr = os.Stderr
+		trace(saveCmd)
+		if err := saveCmd.Run(); err != nil {
+			return fmt.Errorf("error saving image to tar: %s", err)
+		}
+		fmt.Printf("Successfully saved image to %s\n", p.TarPath)
+	}
+
+	return nil
+}
+
+// commandLoadTar creates a command to load an image from a tar file
+func commandLoadTar(tarPath string) *exec.Cmd {
+	return exec.Command(buildahExe, "load", "--storage-driver", "vfs", "--input", tarPath)
+}
+
+// commandImageExists creates a command to check if an image exists
+func commandImageExists(image string) *exec.Cmd {
+	return exec.Command(buildahExe, "inspect", "--storage-driver", "vfs", "--type", "image", image)
+}
+
+// commandSaveTar creates a command to save an image to a tar file
+func commandSaveTar(image string, tarPath string) *exec.Cmd {
+	return exec.Command(buildahExe, "save", "--storage-driver", "vfs", "--output", tarPath, image)
 }
