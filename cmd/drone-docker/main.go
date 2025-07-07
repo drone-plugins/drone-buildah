@@ -29,7 +29,7 @@ func main() {
 		cli.BoolFlag{
 			Name:   "dry-run",
 			Usage:  "dry run disables docker push",
-			EnvVar: "PLUGIN_DRY_RUN",
+			EnvVar: "PLUGIN_DRY_RUN,PLUGIN_NO_PUSH",
 		},
 		cli.StringFlag{
 			Name:   "remote.url",
@@ -235,7 +235,7 @@ func main() {
 		cli.StringFlag{
 			Name:   "tar-path",
 			Usage:  "Path to save Docker image as tar file",
-			EnvVar: "PLUGIN_TAR_PATH",
+			EnvVar: "PLUGIN_TAR_PATH,PLUGIN_DESTINATION_TAR_PATH",
 		},
 	}
 

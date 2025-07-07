@@ -135,8 +135,8 @@ func (p Plugin) Exec() error {
 		}
 	}
 
-	// If TarPath is specified, save the image to a tar file
-	if p.TarPath != "" {
+	// If TarPath is specified and Dryrun is enabled, save the image to a tar file
+	if p.TarPath != "" && p.Dryrun {
 		// Create parent directories if they don't exist
 		dir := filepath.Dir(p.TarPath)
 		if err := os.MkdirAll(dir, 0755); err != nil {
@@ -467,8 +467,8 @@ func (p Plugin) pushOnly() error {
 		}
 	}
 
-	// If TarPath is specified, save the image to a tar file
-	if p.TarPath != "" {
+	// If TarPath is specified and Dryrun is enabled, save the image to a tar file
+	if p.TarPath != "" && p.Dryrun {
 		// Create parent directories if they don't exist
 		dir := filepath.Dir(p.TarPath)
 		if err := os.MkdirAll(dir, 0755); err != nil {
@@ -502,5 +502,5 @@ func commandImageExists(image string) *exec.Cmd {
 
 // commandSaveTar creates a command to save an image to a tar file
 func commandSaveTar(image string, tarPath string) *exec.Cmd {
-	return exec.Command(buildahExe, "save", "--storage-driver", "vfs", "--output", tarPath, image)
+	return exec.Command(buildahExe, "push", "--storage-driver", "vfs", image, "oci-archive:"+tarPath)
 }
