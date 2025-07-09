@@ -237,11 +237,6 @@ func main() {
 			Usage:  "Path to save Docker image as tar file",
 			EnvVar: "PLUGIN_TAR_PATH,PLUGIN_DESTINATION_TAR_PATH",
 		},
-		cli.BoolTFlag{
-			Name:   "oci-archive",
-			Usage:  "Use OCI archive format (true=oci-archive, false=docker-archive)",
-			EnvVar: "PLUGIN_OCI_ARCHIVE",
-		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
@@ -256,7 +251,6 @@ func run(c *cli.Context) error {
 		PushOnly:      c.Bool("push-only"),
 		SourceTarPath: c.String("source-tar-path"),
 		TarPath:       c.String("tar-path"),
-		OCIArchive:    c.BoolT("oci-archive"),
 		Login: docker.Login{
 			Registry: c.String("docker.registry"),
 			Username: c.String("docker.username"),

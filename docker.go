@@ -64,7 +64,6 @@ type (
 		PushOnly      bool   // Push only mode, skips build process
 		SourceTarPath string // Path to Docker image tar file to load and push
 		TarPath       string // Path to save Docker image as tar file
-		OCIArchive    bool   // Use OCI archive format (true=oci-archive, false=docker-archive)
 	}
 )
 
@@ -138,15 +137,14 @@ func (p Plugin) Exec() error {
 
 	// If TarPath is specified and Dryrun is enabled, save the image to a tar file
 	if p.TarPath != "" && p.Dryrun && len(p.Build.Tags) > 0 {
-		// Create parent directories if they don't exist
-		dir := filepath.Dir(p.TarPath)
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("error creating directories for tar file: %s", err)
+		// Ensure parent directories exist
+		if err := os.MkdirAll(filepath.Dir(p.TarPath), 0755); err != nil {
+			return fmt.Errorf("failed to create parent directories for tar path: %s", err)
 		}
 
 		imageToSave := fmt.Sprintf("%s:%s", p.Build.Repo, p.Build.Tags[0])
 		fmt.Println("Saving image to tar:", p.TarPath)
-		cmds = append(cmds, commandSaveTar(imageToSave, p.TarPath, p.OCIArchive))
+		cmds = append(cmds, commandSaveTar(imageToSave, p.TarPath))
 	}
 
 	if p.Cleanup {
@@ -405,7 +403,7 @@ func (p Plugin) pushOnly() error {
 		}
 
 		fmt.Println("Loading image from tar:", p.SourceTarPath)
-		loadCmd := commandLoadTar(p.SourceTarPath, p.OCIArchive)
+		loadCmd := commandLoadTar(p.SourceTarPath)
 		loadCmd.Stdout = os.Stdout
 		loadCmd.Stderr = os.Stderr
 		trace(loadCmd)
@@ -502,18 +500,11 @@ func (p Plugin) pushOnly() error {
 	return nil
 }
 
-// getArchiveFormat returns the appropriate archive format prefix based on the OCIArchive flag
-func getArchiveFormat(useOCIArchive bool) string {
-	if useOCIArchive {
-		return "oci-archive:"
-	}
-	return "docker-archive:"
-}
+
 
 // commandLoadTar creates a command to load an image from a tar file
-func commandLoadTar(tarPath string, useOCIArchive bool) *exec.Cmd {
-	archiveFormat := getArchiveFormat(useOCIArchive)
-	return exec.Command(buildahExe, "--storage-driver", "vfs", "pull", archiveFormat+tarPath)
+func commandLoadTar(tarPath string) *exec.Cmd {
+	return exec.Command(buildahExe, "--storage-driver", "vfs", "pull", "docker-archive:"+tarPath)
 }
 
 // commandImageExists creates a command to check if an image exists
@@ -522,7 +513,6 @@ func commandImageExists(image string) *exec.Cmd {
 }
 
 // commandSaveTar creates a command to save an image to a tar file
-func commandSaveTar(image string, tarPath string, useOCIArchive bool) *exec.Cmd {
-	archiveFormat := getArchiveFormat(useOCIArchive)
-	return exec.Command(buildahExe, "push", "--storage-driver", "vfs", image, archiveFormat+tarPath)
+func commandSaveTar(image string, tarPath string) *exec.Cmd {
+	return exec.Command(buildahExe, "push", "--storage-driver", "vfs", image, "docker-archive:"+tarPath)
 }
