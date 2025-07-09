@@ -1,6 +1,7 @@
 package docker
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -419,36 +420,61 @@ func (p Plugin) pushOnly() error {
 		return fmt.Errorf("no tags specified for push")
 	}
 
-	// Check if source image exists in local daemon before pushing
-	sourceImage := p.Build.Name
-	if sourceImage == "" {
-		sourceImage = fmt.Sprintf("%s:%s", p.Build.Repo, p.Build.Tags[0])
+	// After loading the image from tar, find the loaded image
+	loadedImage, err := findLoadedImage(p.Build.Repo)
+	if err != nil {
+		return fmt.Errorf("failed to find loaded image: %w", err)
 	}
-
-	// Verify the source image exists
-	existsCmd := commandImageExists(sourceImage)
-	existsCmd.Stdout = os.Stdout
-	existsCmd.Stderr = os.Stderr
-	trace(existsCmd)
-	if err := existsCmd.Run(); err != nil {
-		return fmt.Errorf("source image %s not found, cannot push: %s", sourceImage, err)
+	
+	// Create a map to track which images have been tagged for pushing
+	taggedImages := make(map[string]bool)
+	
+	// First check if any of our target tags already exist
+	for _, tag := range p.Build.Tags {
+		fullImage := fmt.Sprintf("%s:%s", p.Build.Repo, tag)
+		if imageExists(fullImage) {
+			taggedImages[fullImage] = true
+			continue
+		}
+	}
+	
+	// If the loaded image exists and we have tags to create
+	if loadedImage != "" {
+		// Create additional tags for any tags that don't exist
+		for _, tag := range p.Build.Tags {
+			fullImage := fmt.Sprintf("%s:%s", p.Build.Repo, tag)
+			if !taggedImages[fullImage] {
+				// Tag the loaded image with this tag
+				tagCmd := commandTag(p.Build, tag)
+				tagCmd.Stdout = os.Stdout
+				tagCmd.Stderr = os.Stderr
+				trace(tagCmd)
+				if err := tagCmd.Run(); err == nil {
+					taggedImages[fullImage] = true
+					fmt.Printf("Created tag: %s\n", fullImage)
+				}
+			}
+		}
+	}
+	
+	// If no images were tagged or found, we can't proceed
+	if len(taggedImages) == 0 {
+		return fmt.Errorf("no images found or tagged for repository %s, cannot push", p.Build.Repo)
 	}
 
 	var cmds []*exec.Cmd
-
-	// For each tag, tag the source image (if needed) and push
-	for _, tag := range p.Build.Tags {
-		targetImage := fmt.Sprintf("%s:%s", p.Build.Repo, tag)
-
-		// Skip tagging if source and target are identical
-		if sourceImage != targetImage {
-			fmt.Printf("Tagging %s as %s\n", sourceImage, targetImage)
-			cmds = append(cmds, commandTag(p.Build, tag))
+	
+	// Push all tagged images
+	for tag := range taggedImages {
+		// Extract tag from the full image name
+		_, tagOnly, found := strings.Cut(tag, ":")
+		if !found {
+			continue
 		}
-
+		
 		// Push the image if not in dry-run mode
 		if !p.Dryrun {
-			cmds = append(cmds, commandPush(p.Build, tag))
+			cmds = append(cmds, commandPush(p.Build, tagOnly))
 		}
 	}
 
@@ -490,4 +516,37 @@ func commandImageExists(image string) *exec.Cmd {
 func commandSaveTar(image string, tarPath string, useOCIArchive bool) *exec.Cmd {
 	archiveFormat := getArchiveFormat(useOCIArchive)
 	return exec.Command(buildahExe, "push", "--storage-driver", "vfs", image, archiveFormat+tarPath)
+}
+
+// findLoadedImage finds the image that was loaded from the tar file by listing all images
+// and matching them against the repository name
+func findLoadedImage(repo string) (string, error) {
+	// List all images in storage
+	listCmd := exec.Command(buildahExe, "--storage-driver", "vfs", "images", "--format", "{{.Repository}}:{{.Tag}}")
+	var output bytes.Buffer
+	listCmd.Stdout = &output
+	listCmd.Stderr = os.Stderr
+	trace(listCmd)
+	if err := listCmd.Run(); err != nil {
+		return "", fmt.Errorf("failed to list images: %w", err)
+	}
+
+	// Process the output to find a matching image
+	images := strings.Split(strings.TrimSpace(output.String()), "\n")
+	for _, img := range images {
+		if strings.HasPrefix(img, repo) {
+			return img, nil
+		}
+	}
+
+	return "", fmt.Errorf("no matching image found for repository %s", repo)
+}
+
+// imageExists checks if an image exists in the buildah storage
+func imageExists(image string) bool {
+	existsCmd := commandImageExists(image)
+	existsCmd.Stdout = nil // suppress output, we only care about the exit code
+	existsCmd.Stderr = os.Stderr
+	trace(existsCmd)
+	return existsCmd.Run() == nil
 }
