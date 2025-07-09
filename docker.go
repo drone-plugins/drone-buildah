@@ -522,7 +522,7 @@ func commandSaveTar(image string, tarPath string, useOCIArchive bool) *exec.Cmd 
 // and matching them against the repository name
 func findLoadedImage(repo string) (string, error) {
 	// List all images in storage
-	listCmd := exec.Command(buildahExe, "--storage-driver", "vfs", "images", "--format", "{{.Repository}}:{{.Tag}}")
+	listCmd := exec.Command(buildahExe, "--storage-driver", "vfs", "images")
 	var output bytes.Buffer
 	listCmd.Stdout = &output
 	listCmd.Stderr = os.Stderr
@@ -532,10 +532,21 @@ func findLoadedImage(repo string) (string, error) {
 	}
 
 	// Process the output to find a matching image
-	images := strings.Split(strings.TrimSpace(output.String()), "\n")
-	for _, img := range images {
-		if strings.HasPrefix(img, repo) {
-			return img, nil
+	lines := strings.Split(strings.TrimSpace(output.String()), "\n")
+	for _, line := range lines {
+		// Skip header line
+		if strings.HasPrefix(line, "REPOSITORY") {
+			continue
+		}
+		
+		// Split the line by whitespace
+		fields := strings.Fields(line)
+		if len(fields) >= 2 {
+			// Combine repository and tag
+			fullName := fmt.Sprintf("%s:%s", fields[0], fields[1])
+			if strings.HasPrefix(fullName, repo) {
+				return fullName, nil
+			}
 		}
 	}
 
