@@ -207,12 +207,12 @@ func commandLoginEmail(login Login) *exec.Cmd {
 
 // helper function to create the docker info command.
 func commandVersion() *exec.Cmd {
-	return exec.Command(buildahExe, "version")
+	return exec.Command(buildahExe, "--storage-driver", "vfs", "version")
 }
 
 // helper function to create the docker info command.
 func commandInfo() *exec.Cmd {
-	return exec.Command(buildahExe, "info")
+	return exec.Command(buildahExe, "--storage-driver", "vfs", "info")
 }
 
 // helper function to create the docker build command.
