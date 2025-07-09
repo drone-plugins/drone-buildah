@@ -1,7 +1,6 @@
 package docker
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -58,14 +57,14 @@ type (
 
 	// Plugin defines the Docker plugin parameters.
 	Plugin struct {
-		Login        Login  // Docker login configuration
-		Build        Build  // Docker build configuration
-		Dryrun       bool   // Docker push is skipped
-		Cleanup      bool   // Docker purge is enabled
-		PushOnly     bool   // Push only mode, skips build process
+		Login         Login  // Docker login configuration
+		Build         Build  // Docker build configuration
+		Dryrun        bool   // Docker push is skipped
+		Cleanup       bool   // Docker purge is enabled
+		PushOnly      bool   // Push only mode, skips build process
 		SourceTarPath string // Path to Docker image tar file to load and push
-		TarPath      string // Path to save Docker image as tar file
-		OCIArchive   bool   // Use OCI archive format (true=oci-archive, false=docker-archive)
+		TarPath       string // Path to save Docker image as tar file
+		OCIArchive    bool   // Use OCI archive format (true=oci-archive, false=docker-archive)
 	}
 )
 
@@ -420,65 +419,75 @@ func (p Plugin) pushOnly() error {
 		return fmt.Errorf("no tags specified for push")
 	}
 
-	// After loading the image from tar, find the loaded image
-	loadedImage, err := findLoadedImage(p.Build.Repo)
-	if err != nil {
-		return fmt.Errorf("failed to find loaded image: %w", err)
-	}
-	
-	// Create a map to track which images have been tagged for pushing
-	taggedImages := make(map[string]bool)
-	
-	// First check if any of our target tags already exist
-	for _, tag := range p.Build.Tags {
-		fullImage := fmt.Sprintf("%s:%s", p.Build.Repo, tag)
-		if imageExists(fullImage) {
-			taggedImages[fullImage] = true
-			continue
+	// Use the repository name as the source image name
+	sourceImageName := p.Build.Repo
+	sourceTags := p.Build.Tags
+
+	// For each source tag and target tag combination
+	taggedForPush := make(map[string]bool)
+
+	for _, sourceTag := range sourceTags {
+		sourceFullImageName := fmt.Sprintf("%s:%s", sourceImageName, sourceTag)
+
+		// Check if the source image exists in local storage
+		existsCmd := commandImageExists(sourceFullImageName)
+		existsCmd.Stdout = nil // suppress output, we only care about the exit code
+		existsCmd.Stderr = os.Stderr
+		trace(existsCmd)
+
+		if err := existsCmd.Run(); err != nil {
+			fmt.Printf("Warning: Source image %s not found\n", sourceFullImageName)
+			// Continue to the next source tag if available, otherwise return error
+			if len(sourceTags) > 1 {
+				continue
+			}
+			return fmt.Errorf("source image %s not found, cannot push", sourceFullImageName)
 		}
-	}
-	
-	// If the loaded image exists and we have tags to create
-	if loadedImage != "" {
-		// Create additional tags for any tags that don't exist
-		for _, tag := range p.Build.Tags {
-			fullImage := fmt.Sprintf("%s:%s", p.Build.Repo, tag)
-			if !taggedImages[fullImage] {
-				// Tag the loaded image with this tag
-				tagCmd := commandTag(p.Build, tag)
+
+		// For each target tag, tag and push
+		for _, targetTag := range p.Build.Tags {
+			targetFullImageName := fmt.Sprintf("%s:%s", p.Build.Repo, targetTag)
+
+			// Skip if source and target are identical
+			if sourceFullImageName == targetFullImageName {
+				fmt.Printf("Source and target image names are identical: %s\n", sourceFullImageName)
+				taggedForPush[targetFullImageName] = true
+			} else {
+				// Tag the source image with the target name
+				fmt.Printf("Tagging %s as %s\n", sourceFullImageName, targetFullImageName)
+				tagCmd := exec.Command(buildahExe, "--storage-driver", "vfs", "tag", sourceFullImageName, targetFullImageName)
 				tagCmd.Stdout = os.Stdout
 				tagCmd.Stderr = os.Stderr
 				trace(tagCmd)
 				if err := tagCmd.Run(); err == nil {
-					taggedImages[fullImage] = true
-					fmt.Printf("Created tag: %s\n", fullImage)
+					taggedForPush[targetFullImageName] = true
+				} else {
+					fmt.Printf("Warning: Failed to tag %s as %s: %s\n", sourceFullImageName, targetFullImageName, err)
 				}
 			}
 		}
 	}
-	
+
 	// If no images were tagged or found, we can't proceed
-	if len(taggedImages) == 0 {
+	if len(taggedForPush) == 0 {
 		return fmt.Errorf("no images found or tagged for repository %s, cannot push", p.Build.Repo)
 	}
 
 	var cmds []*exec.Cmd
-	
+
 	// Push all tagged images
-	for tag := range taggedImages {
+	for tag := range taggedForPush {
 		// Extract tag from the full image name
 		_, tagOnly, found := strings.Cut(tag, ":")
 		if !found {
 			continue
 		}
-		
+
 		// Push the image if not in dry-run mode
 		if !p.Dryrun {
 			cmds = append(cmds, commandPush(p.Build, tagOnly))
 		}
 	}
-
-	// Tar saving functionality is only available in the regular execution mode with dry-run enabled
 
 	// Execute all commands
 	for _, cmd := range cmds {
@@ -516,48 +525,4 @@ func commandImageExists(image string) *exec.Cmd {
 func commandSaveTar(image string, tarPath string, useOCIArchive bool) *exec.Cmd {
 	archiveFormat := getArchiveFormat(useOCIArchive)
 	return exec.Command(buildahExe, "push", "--storage-driver", "vfs", image, archiveFormat+tarPath)
-}
-
-// findLoadedImage finds the image that was loaded from the tar file by listing all images
-// and matching them against the repository name
-func findLoadedImage(repo string) (string, error) {
-	// List all images in storage
-	listCmd := exec.Command(buildahExe, "--storage-driver", "vfs", "images")
-	var output bytes.Buffer
-	listCmd.Stdout = &output
-	listCmd.Stderr = os.Stderr
-	trace(listCmd)
-	if err := listCmd.Run(); err != nil {
-		return "", fmt.Errorf("failed to list images: %w", err)
-	}
-
-	// Process the output to find a matching image
-	lines := strings.Split(strings.TrimSpace(output.String()), "\n")
-	for _, line := range lines {
-		// Skip header line
-		if strings.HasPrefix(line, "REPOSITORY") {
-			continue
-		}
-		
-		// Split the line by whitespace
-		fields := strings.Fields(line)
-		if len(fields) >= 2 {
-			// Combine repository and tag
-			fullName := fmt.Sprintf("%s:%s", fields[0], fields[1])
-			if strings.HasPrefix(fullName, repo) {
-				return fullName, nil
-			}
-		}
-	}
-
-	return "", fmt.Errorf("no matching image found for repository %s", repo)
-}
-
-// imageExists checks if an image exists in the buildah storage
-func imageExists(image string) bool {
-	existsCmd := commandImageExists(image)
-	existsCmd.Stdout = nil // suppress output, we only care about the exit code
-	existsCmd.Stderr = os.Stderr
-	trace(existsCmd)
-	return existsCmd.Run() == nil
 }
