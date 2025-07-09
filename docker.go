@@ -57,13 +57,14 @@ type (
 
 	// Plugin defines the Docker plugin parameters.
 	Plugin struct {
-		Login         Login  // Docker login configuration
-		Build         Build  // Docker build configuration
-		Dryrun        bool   // Docker push is skipped
-		Cleanup       bool   // Docker purge is enabled
-		PushOnly      bool   // Push only mode, skips build process
+		Login        Login  // Docker login configuration
+		Build        Build  // Docker build configuration
+		Dryrun       bool   // Docker push is skipped
+		Cleanup      bool   // Docker purge is enabled
+		PushOnly     bool   // Push only mode, skips build process
 		SourceTarPath string // Path to Docker image tar file to load and push
-		TarPath       string // Path to save Docker image as tar file
+		TarPath      string // Path to save Docker image as tar file
+		OCIArchive   bool   // Use OCI archive format (true=oci-archive, false=docker-archive)
 	}
 )
 
@@ -145,7 +146,7 @@ func (p Plugin) Exec() error {
 
 		imageToSave := fmt.Sprintf("%s:%s", p.Build.Repo, p.Build.Tags[0])
 		fmt.Println("Saving image to tar:", p.TarPath)
-		cmds = append(cmds, commandSaveTar(imageToSave, p.TarPath))
+		cmds = append(cmds, commandSaveTar(imageToSave, p.TarPath, p.OCIArchive))
 	}
 
 	if p.Cleanup {
@@ -404,7 +405,7 @@ func (p Plugin) pushOnly() error {
 		}
 
 		fmt.Println("Loading image from tar:", p.SourceTarPath)
-		loadCmd := commandLoadTar(p.SourceTarPath)
+		loadCmd := commandLoadTar(p.SourceTarPath, p.OCIArchive)
 		loadCmd.Stdout = os.Stdout
 		loadCmd.Stderr = os.Stderr
 		trace(loadCmd)
@@ -466,9 +467,18 @@ func (p Plugin) pushOnly() error {
 	return nil
 }
 
+// getArchiveFormat returns the appropriate archive format prefix based on the OCIArchive flag
+func getArchiveFormat(useOCIArchive bool) string {
+	if useOCIArchive {
+		return "oci-archive:"
+	}
+	return "docker-archive:"
+}
+
 // commandLoadTar creates a command to load an image from a tar file
-func commandLoadTar(tarPath string) *exec.Cmd {
-	return exec.Command(buildahExe, "load", "--storage-driver", "vfs", "--input", tarPath)
+func commandLoadTar(tarPath string, useOCIArchive bool) *exec.Cmd {
+	archiveFormat := getArchiveFormat(useOCIArchive)
+	return exec.Command(buildahExe, "--storage-driver", "vfs", "pull", archiveFormat+tarPath)
 }
 
 // commandImageExists creates a command to check if an image exists
@@ -477,6 +487,7 @@ func commandImageExists(image string) *exec.Cmd {
 }
 
 // commandSaveTar creates a command to save an image to a tar file
-func commandSaveTar(image string, tarPath string) *exec.Cmd {
-	return exec.Command(buildahExe, "push", "--storage-driver", "vfs", image, "oci-archive:"+tarPath)
+func commandSaveTar(image string, tarPath string, useOCIArchive bool) *exec.Cmd {
+	archiveFormat := getArchiveFormat(useOCIArchive)
+	return exec.Command(buildahExe, "push", "--storage-driver", "vfs", image, archiveFormat+tarPath)
 }
