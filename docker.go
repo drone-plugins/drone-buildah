@@ -57,13 +57,13 @@ type (
 
 	// Plugin defines the Docker plugin parameters.
 	Plugin struct {
-		Login        Login  // Docker login configuration
-		Build        Build  // Docker build configuration
-		Dryrun       bool   // Docker push is skipped
-		Cleanup      bool   // Docker purge is enabled
-		PushOnly     bool   // Push only mode, skips build process
+		Login         Login  // Docker login configuration
+		Build         Build  // Docker build configuration
+		Dryrun        bool   // Docker push is skipped
+		Cleanup       bool   // Docker purge is enabled
+		PushOnly      bool   // Push only mode, skips build process
 		SourceTarPath string // Path to Docker image tar file to load and push
-		TarPath      string // Path to save Docker image as tar file
+		TarPath       string // Path to save Docker image as tar file
 	}
 )
 
@@ -130,29 +130,22 @@ func (p Plugin) Exec() error {
 	for _, tag := range p.Build.Tags {
 		cmds = append(cmds, commandTag(p.Build, tag)) // docker tag
 
-		if p.Dryrun == false {
+		if !p.Dryrun {
 			cmds = append(cmds, commandPush(p.Build, tag)) // docker push
 		}
 	}
 
 	// If TarPath is specified and Dryrun is enabled, save the image to a tar file
-	if p.TarPath != "" && p.Dryrun {
+	if p.TarPath != "" && p.Dryrun && len(p.Build.Tags) > 0 {
 		// Create parent directories if they don't exist
 		dir := filepath.Dir(p.TarPath)
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return fmt.Errorf("error creating directories for tar file: %s", err)
 		}
 
-		// Save the image as tar
+		imageToSave := fmt.Sprintf("%s:%s", p.Build.Repo, p.Build.Tags[0])
 		fmt.Println("Saving image to tar:", p.TarPath)
-		saveCmd := commandSaveTar(p.Build.Name, p.TarPath)
-		saveCmd.Stdout = os.Stdout
-		saveCmd.Stderr = os.Stderr
-		trace(saveCmd)
-		if err := saveCmd.Run(); err != nil {
-			return fmt.Errorf("error saving image to tar: %s", err)
-		}
-		fmt.Printf("Successfully saved image to %s\n", p.TarPath)
+		cmds = append(cmds, commandSaveTar(imageToSave, p.TarPath))
 	}
 
 	if p.Cleanup {
@@ -440,51 +433,34 @@ func (p Plugin) pushOnly() error {
 		return fmt.Errorf("source image %s not found, cannot push: %s", sourceImage, err)
 	}
 
+	var cmds []*exec.Cmd
+
 	// For each tag, tag the source image (if needed) and push
 	for _, tag := range p.Build.Tags {
 		targetImage := fmt.Sprintf("%s:%s", p.Build.Repo, tag)
-		
+
 		// Skip tagging if source and target are identical
 		if sourceImage != targetImage {
 			fmt.Printf("Tagging %s as %s\n", sourceImage, targetImage)
-			tagCmd := commandTag(p.Build, tag)
-			tagCmd.Stdout = os.Stdout
-			tagCmd.Stderr = os.Stderr
-			trace(tagCmd)
-			if err := tagCmd.Run(); err != nil {
-				return fmt.Errorf("failed to tag image %s as %s: %s", sourceImage, targetImage, err)
-			}
+			cmds = append(cmds, commandTag(p.Build, tag))
 		}
 
-		// Push the image
-		fmt.Println("Pushing image:", targetImage)
-		pushCmd := commandPush(p.Build, tag)
-		pushCmd.Stdout = os.Stdout
-		pushCmd.Stderr = os.Stderr
-		trace(pushCmd)
-		if err := pushCmd.Run(); err != nil {
-			return fmt.Errorf("failed to push image %s: %s", targetImage, err)
+		// Push the image if not in dry-run mode
+		if !p.Dryrun {
+			cmds = append(cmds, commandPush(p.Build, tag))
 		}
 	}
 
-	// If TarPath is specified and Dryrun is enabled, save the image to a tar file
-	if p.TarPath != "" && p.Dryrun {
-		// Create parent directories if they don't exist
-		dir := filepath.Dir(p.TarPath)
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("error creating directories for tar file: %s", err)
-		}
+	// Tar saving functionality is only available in the regular execution mode with dry-run enabled
 
-		// Save the image as tar
-		fmt.Println("Saving image to tar:", p.TarPath)
-		saveCmd := commandSaveTar(sourceImage, p.TarPath)
-		saveCmd.Stdout = os.Stdout
-		saveCmd.Stderr = os.Stderr
-		trace(saveCmd)
-		if err := saveCmd.Run(); err != nil {
-			return fmt.Errorf("error saving image to tar: %s", err)
+	// Execute all commands
+	for _, cmd := range cmds {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		trace(cmd)
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("command failed: %s", err)
 		}
-		fmt.Printf("Successfully saved image to %s\n", p.TarPath)
 	}
 
 	return nil
