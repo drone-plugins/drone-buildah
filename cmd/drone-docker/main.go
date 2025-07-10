@@ -29,7 +29,7 @@ func main() {
 		cli.BoolFlag{
 			Name:   "dry-run",
 			Usage:  "dry run disables docker push",
-			EnvVar: "PLUGIN_DRY_RUN",
+			EnvVar: "PLUGIN_DRY_RUN,PLUGIN_NO_PUSH",
 		},
 		cli.StringFlag{
 			Name:   "remote.url",
@@ -222,6 +222,21 @@ func main() {
 			Usage:  "User Layers",
 			EnvVar: "PLUGIN_LAYERS",
 		},
+		cli.BoolFlag{
+			Name:   "push-only",
+			Usage:  "Push existing Docker images without building",
+			EnvVar: "PLUGIN_PUSH_ONLY",
+		},
+		cli.StringFlag{
+			Name:   "source-tar-path",
+			Usage:  "Path to Docker image tar file to load and push",
+			EnvVar: "PLUGIN_SOURCE_TAR_PATH",
+		},
+		cli.StringFlag{
+			Name:   "tar-path",
+			Usage:  "Path to save Docker image as tar file",
+			EnvVar: "PLUGIN_TAR_PATH,PLUGIN_DESTINATION_TAR_PATH",
+		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
@@ -231,8 +246,11 @@ func main() {
 
 func run(c *cli.Context) error {
 	plugin := docker.Plugin{
-		Dryrun:  c.Bool("dry-run"),
-		Cleanup: c.BoolT("docker.purge"),
+		Dryrun:        c.Bool("dry-run"),
+		Cleanup:       c.BoolT("docker.purge"),
+		PushOnly:      c.Bool("push-only"),
+		SourceTarPath: c.String("source-tar-path"),
+		TarPath:       c.String("tar-path"),
 		Login: docker.Login{
 			Registry: c.String("docker.registry"),
 			Username: c.String("docker.username"),

@@ -57,10 +57,13 @@ type (
 
 	// Plugin defines the Docker plugin parameters.
 	Plugin struct {
-		Login   Login // Docker login configuration
-		Build   Build // Docker build configuration
-		Dryrun  bool  // Docker push is skipped
-		Cleanup bool  // Docker purge is enabled
+		Login         Login  // Docker login configuration
+		Build         Build  // Docker build configuration
+		Dryrun        bool   // Docker push is skipped
+		Cleanup       bool   // Docker purge is enabled
+		PushOnly      bool   // Push only mode, skips build process
+		SourceTarPath string // Path to Docker image tar file to load and push
+		TarPath       string // Path to save Docker image as tar file
 	}
 )
 
@@ -105,6 +108,11 @@ func (p Plugin) Exec() error {
 		fmt.Println("Registry credentials or Docker config not provided. Guest mode enabled.")
 	}
 
+	// Check if we're in push-only mode
+	if p.PushOnly {
+		return p.pushOnly()
+	}
+
 	// add proxy build args
 	addProxyBuildArgs(&p.Build)
 
@@ -122,9 +130,21 @@ func (p Plugin) Exec() error {
 	for _, tag := range p.Build.Tags {
 		cmds = append(cmds, commandTag(p.Build, tag)) // docker tag
 
-		if p.Dryrun == false {
+		if !p.Dryrun {
 			cmds = append(cmds, commandPush(p.Build, tag)) // docker push
 		}
+	}
+
+	// If TarPath is specified and Dryrun is enabled, save the image to a tar file
+	if p.TarPath != "" && p.Dryrun && len(p.Build.Tags) > 0 {
+		// Ensure parent directories exist
+		if err := os.MkdirAll(filepath.Dir(p.TarPath), 0755); err != nil {
+			return fmt.Errorf("failed to create parent directories for tar path: %s", err)
+		}
+
+		imageToSave := fmt.Sprintf("%s:%s", p.Build.Repo, p.Build.Tags[0])
+		fmt.Println("Saving image to tar:", p.TarPath)
+		cmds = append(cmds, commandSaveTar(imageToSave, p.TarPath))
 	}
 
 	if p.Cleanup {
@@ -184,14 +204,14 @@ func commandLoginEmail(login Login) *exec.Cmd {
 	)
 }
 
-// helper function to create the docker info command.
+// helper function to create the docker version command.
 func commandVersion() *exec.Cmd {
 	return exec.Command(buildahExe, "version")
 }
 
 // helper function to create the docker info command.
 func commandInfo() *exec.Cmd {
-	return exec.Command(buildahExe, "info")
+	return exec.Command(buildahExe, "--storage-driver", "vfs", "info")
 }
 
 // helper function to create the docker build command.
@@ -364,4 +384,135 @@ func commandRmi(tag string) *exec.Cmd {
 // tag so that it can be extracted and displayed in the logs.
 func trace(cmd *exec.Cmd) {
 	fmt.Fprintf(os.Stdout, "+ %s\n", strings.Join(cmd.Args, " "))
+}
+
+// pushOnly handles pushing images without building them
+func (p Plugin) pushOnly() error {
+	// If source tar path is provided, load the image first
+	if p.SourceTarPath != "" {
+		fileInfo, err := os.Stat(p.SourceTarPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				return fmt.Errorf("source image tar file %s does not exist", p.SourceTarPath)
+			}
+			return fmt.Errorf("failed to access source image tar file: %s", err)
+		}
+
+		if !fileInfo.Mode().IsRegular() {
+			return fmt.Errorf("source image tar %s is not a regular file", p.SourceTarPath)
+		}
+
+		fmt.Println("Loading image from tar:", p.SourceTarPath)
+		loadCmd := commandLoadTar(p.SourceTarPath)
+		loadCmd.Stdout = os.Stdout
+		loadCmd.Stderr = os.Stderr
+		trace(loadCmd)
+		if err := loadCmd.Run(); err != nil {
+			return fmt.Errorf("failed to load image from tar: %s", err)
+		}
+	}
+
+	// Check for required tags
+	if len(p.Build.Tags) == 0 {
+		return fmt.Errorf("no tags specified for push")
+	}
+
+	// Use the repository name as the source image name
+	sourceImageName := p.Build.Repo
+	sourceTags := p.Build.Tags
+
+	// For each source tag and target tag combination
+	taggedForPush := make(map[string]bool)
+
+	for _, sourceTag := range sourceTags {
+		sourceFullImageName := fmt.Sprintf("%s:%s", sourceImageName, sourceTag)
+
+		// Check if the source image exists in local storage
+		existsCmd := commandImageExists(sourceFullImageName)
+		existsCmd.Stdout = nil // suppress output, we only care about the exit code
+		existsCmd.Stderr = os.Stderr
+		trace(existsCmd)
+
+		if err := existsCmd.Run(); err != nil {
+			fmt.Printf("Warning: Source image %s not found\n", sourceFullImageName)
+			// Continue to the next source tag if available, otherwise return error
+			if len(sourceTags) > 1 {
+				continue
+			}
+			return fmt.Errorf("source image %s not found, cannot push", sourceFullImageName)
+		}
+
+		// For each target tag, tag and push
+		for _, targetTag := range p.Build.Tags {
+			targetFullImageName := fmt.Sprintf("%s:%s", p.Build.Repo, targetTag)
+
+			// Skip if source and target are identical
+			if sourceFullImageName == targetFullImageName {
+				fmt.Printf("Source and target image names are identical: %s\n", sourceFullImageName)
+				taggedForPush[targetFullImageName] = true
+			} else {
+				// Tag the source image with the target name
+				fmt.Printf("Tagging %s as %s\n", sourceFullImageName, targetFullImageName)
+				tagCmd := exec.Command(buildahExe, "--storage-driver", "vfs", "tag", sourceFullImageName, targetFullImageName)
+				tagCmd.Stdout = os.Stdout
+				tagCmd.Stderr = os.Stderr
+				trace(tagCmd)
+				if err := tagCmd.Run(); err == nil {
+					taggedForPush[targetFullImageName] = true
+				} else {
+					fmt.Printf("Warning: Failed to tag %s as %s: %s\n", sourceFullImageName, targetFullImageName, err)
+				}
+			}
+		}
+	}
+
+	// If no images were tagged or found, we can't proceed
+	if len(taggedForPush) == 0 {
+		return fmt.Errorf("no images found or tagged for repository %s, cannot push", p.Build.Repo)
+	}
+
+	var cmds []*exec.Cmd
+
+	// Push all tagged images
+	for tag := range taggedForPush {
+		// Extract tag from the full image name
+		_, tagOnly, found := strings.Cut(tag, ":")
+		if !found {
+			continue
+		}
+
+		// Push the image if not in dry-run mode
+		if !p.Dryrun {
+			cmds = append(cmds, commandPush(p.Build, tagOnly))
+		}
+	}
+
+	// Execute all commands
+	for _, cmd := range cmds {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		trace(cmd)
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("command failed: %s", err)
+		}
+	}
+
+	return nil
+}
+
+
+
+// commandLoadTar creates a command to load an image from a tar file
+func commandLoadTar(tarPath string) *exec.Cmd {
+	return exec.Command(buildahExe, "--storage-driver", "vfs", "pull", "docker-archive:"+tarPath)
+}
+
+// commandImageExists creates a command to check if an image exists
+func commandImageExists(image string) *exec.Cmd {
+	return exec.Command(buildahExe, "inspect", "--storage-driver", "vfs", "--type", "image", image)
+}
+
+// commandSaveTar creates a command to save an image to a tar file
+func commandSaveTar(image string, tarPath string) *exec.Cmd {
+	return exec.Command(buildahExe, "push", "--storage-driver", "vfs", image, "docker-archive:"+tarPath)
 }
