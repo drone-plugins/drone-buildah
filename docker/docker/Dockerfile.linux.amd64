@@ -1,4 +1,4 @@
-FROM quay.io/buildah/stable:v1.43.1
+FROM harness0.harness.io/oci/harness-beta/buildah:1.43.2
 
 # Set up the working directory
 USER build
