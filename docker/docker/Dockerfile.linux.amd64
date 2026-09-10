@@ -1,5 +1,10 @@
 FROM harness0.harness.io/oci/harness-beta/buildah:1.43.2
 
+# HHI buildah is minimal Alpine: prepare storage/run dirs for the non-root build user
+USER root
+RUN mkdir -p /run/containers /var/lib/containers /home/build/.local/share/containers \
+ && chown -R build:build /run/containers /var/lib/containers /home/build
+
 # Set up the working directory
 USER build
 WORKDIR /home/build
