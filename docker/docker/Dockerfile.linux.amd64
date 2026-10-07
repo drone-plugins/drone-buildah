@@ -1,4 +1,4 @@
-FROM harness0.harness.io/oci/harness-beta/buildah:1.43.2
+FROM harness0.harness.io/oci/docker_artifacts/hhi/buildah:1.43.2
 
 # Set up the working directory
 USER build
