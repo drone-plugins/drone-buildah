@@ -1,3 +1,6 @@
+FROM harness0.harness.io/oci/docker_artifacts/hhi/harnessos-alpine:1 AS hhi-ca-certificates
+RUN apk add --no-cache 'ca-certificates>=20261020-r0'
+
 FROM quay.io/buildah/stable:v1.43.1
 
 USER build
@@ -8,3 +11,5 @@ ENV STORAGE_DRIVER=vfs
 ADD release/linux/amd64/drone-docker /bin/
 ADD release/linux/amd64/drone-gcr /bin/
 ENTRYPOINT ["/bin/drone-gcr"]
+
+COPY --from=hhi-ca-certificates /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt

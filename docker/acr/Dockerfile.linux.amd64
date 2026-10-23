@@ -1,5 +1,8 @@
 # Source for dockerfile:
 # https://github.com/containers/buildah/blob/master/docs/tutorials/05-openshift-rootless-bud.md
+FROM harness0.harness.io/oci/docker_artifacts/hhi/harnessos-alpine:1 AS hhi-ca-certificates
+RUN apk add --no-cache 'ca-certificates>=20261020-r0'
+
 FROM quay.io/buildah/stable:v1.43.1
 
 RUN touch /etc/subgid /etc/subuid \
@@ -23,3 +26,5 @@ ENV BUILDAH_ISOLATION=chroot
 ADD release/linux/amd64/drone-docker /bin/
 ADD release/linux/amd64/drone-acr /bin/
 ENTRYPOINT ["/bin/drone-acr"]
+
+COPY --from=hhi-ca-certificates /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
