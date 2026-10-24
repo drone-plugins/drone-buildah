@@ -1,4 +1,6 @@
-FROM quay.io/buildah/stable:v1.43.1
+FROM quay.io/buildah/stable:v1.43.1@sha256:ca4edbaabf71ca330ec9b2714bf8e06c726a6e85ae215cfb1474d2e2c832aacb
+COPY docker/ca-blocklist/incident.pem /etc/pki/ca-trust/source/blocklist/incident.pem
+RUN update-ca-trust
 
 USER build
 WORKDIR /home/build
