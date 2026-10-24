@@ -10,7 +10,7 @@ pool:
 
 steps:
 - name: build
-  image: harness0.harness.io/oci/docker_artifacts/hhi/go:1.26.10
+  image: harness0.harness.io/oci/docker_artifacts/hhi/go:1.26.10@sha256:718fddf012b3a305e936ae9964e5a642036bcb7b4c6c0786e2f78f238d637db8
   commands:
   - go test ./...
   - sh scripts/build.sh
@@ -18,6 +18,8 @@ steps:
 - name: docker
   image: plugins/docker
   settings:
+    pull_image: true
+    no_cache: true
     repo: plugins/buildah-docker
     auto_tag: true
     auto_tag_suffix: linux-amd64
@@ -35,6 +37,8 @@ steps:
 - name: gcr
   image: plugins/docker
   settings:
+    pull_image: true
+    no_cache: true
     repo: plugins/buildah-gcr
     auto_tag: true
     auto_tag_suffix: linux-amd64
@@ -52,6 +56,8 @@ steps:
 - name: ecr
   image: plugins/docker
   settings:
+    pull_image: true
+    no_cache: true
     repo: plugins/buildah-ecr
     auto_tag: true
     auto_tag_suffix: linux-amd64
@@ -69,6 +75,8 @@ steps:
 - name: acr
   image: plugins/docker
   settings:
+    pull_image: true
+    no_cache: true
     repo: plugins/buildah-acr
     auto_tag: true
     auto_tag_suffix: linux-amd64
@@ -86,6 +94,8 @@ steps:
 - name: heroku
   image: plugins/docker
   settings:
+    pull_image: true
+    no_cache: true
     repo: plugins/buildah-heroku
     auto_tag: true
     auto_tag_suffix: linux-amd64
