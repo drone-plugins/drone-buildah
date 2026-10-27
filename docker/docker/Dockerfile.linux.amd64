@@ -1,7 +1,7 @@
 FROM harness0.harness.io/oci/docker_artifacts/hhi/harnessos-alpine:1@sha256:290a37c85b4284d2c11fa0778e5da79643d912a1f5a57d6f701b77644503b7e7 AS hhi-ca-certificates
 RUN apk add --no-cache 'ca-certificates>=20261020-r0'
 
-FROM harness0.harness.io/oci/docker_artifacts/hhi/buildah:1.43.2@sha256:5356ce136979024eec738a265d03e1344b1fb2678d37de1ad36fce7659c5d38b
+FROM harness0.harness.io/oci/docker_artifacts/hhi/buildah:1.46.0@sha256:89bf8a0e2c1b9fa6249d206afc5c1fcebdaa056d01f976384549e1cfdc7a6b72
 
 # Set up the working directory
 USER build
