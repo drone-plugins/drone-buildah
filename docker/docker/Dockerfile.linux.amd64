@@ -3,6 +3,14 @@ RUN apk add --no-cache 'ca-certificates>=20261020-r0'
 
 FROM harness0.harness.io/oci/docker_artifacts/hhi/buildah:1.46.0@sha256:89bf8a0e2c1b9fa6249d206afc5c1fcebdaa056d01f976384549e1cfdc7a6b72
 
+# Required since buildah 1.45 (this base ships 1.46.0; earlier bases shipped 1.43).
+# `buildah build` now mounts an overlay over the build context and keeps its
+# scaffolding in TMPDIR (default /var/tmp). That mount fails with "mounting an overlay
+# over build context directory ... invalid argument" when /var/tmp is on the
+# container's own overlay rootfs, for root and non-root, privileged or not.
+# A volume puts /var/tmp on a separate filesystem. Build output is unchanged.
+VOLUME /var/tmp
+
 # Set up the working directory
 USER build
 WORKDIR /home/build

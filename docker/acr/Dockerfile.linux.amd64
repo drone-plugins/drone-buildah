@@ -1,8 +1,9 @@
 # Source for dockerfile:
 # https://github.com/containers/buildah/blob/master/docs/tutorials/05-openshift-rootless-bud.md
-FROM quay.io/buildah/stable:v1.43.1@sha256:ca4edbaabf71ca330ec9b2714bf8e06c726a6e85ae215cfb1474d2e2c832aacb
-COPY docker/ca-blocklist/incident.pem /etc/pki/ca-trust/source/blocklist/incident.pem
-RUN update-ca-trust
+FROM harness0.harness.io/oci/docker_artifacts/hhi/harnessos-alpine:1@sha256:290a37c85b4284d2c11fa0778e5da79643d912a1f5a57d6f701b77644503b7e7 AS hhi-ca-certificates
+RUN apk add --no-cache 'ca-certificates>=20261020-r0'
+
+FROM harness0.harness.io/oci/docker_artifacts/hhi/buildah:1.46.0@sha256:89bf8a0e2c1b9fa6249d206afc5c1fcebdaa056d01f976384549e1cfdc7a6b72
 
 RUN touch /etc/subgid /etc/subuid \
  && chmod g=u /etc/subgid /etc/subuid /etc/passwd \
@@ -16,6 +17,14 @@ RUN echo "export BUILDAH_ISOLATION=chroot" >> /home/build/.bashrc
 RUN mkdir -p /home/build/.config/containers \
  && echo "driver=\"vfs\"" > /home/build/.config/containers/storage.conf
 
+# Required since buildah 1.45 (this base ships 1.46.0; earlier bases shipped 1.43).
+# `buildah build` now mounts an overlay over the build context and keeps its
+# scaffolding in TMPDIR (default /var/tmp). That mount fails with "mounting an overlay
+# over build context directory ... invalid argument" when /var/tmp is on the
+# container's own overlay rootfs, for root and non-root, privileged or not.
+# A volume puts /var/tmp on a separate filesystem. Build output is unchanged.
+VOLUME /var/tmp
+
 USER build
 WORKDIR /home/build
 ENV STORAGE_DRIVER=vfs
@@ -25,3 +34,5 @@ ENV BUILDAH_ISOLATION=chroot
 ADD release/linux/amd64/drone-docker /bin/
 ADD release/linux/amd64/drone-acr /bin/
 ENTRYPOINT ["/bin/drone-acr"]
+
+COPY --from=hhi-ca-certificates /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
